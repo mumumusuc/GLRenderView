@@ -3,29 +3,60 @@ package com.mumu.glrenderview;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Paint;
+import android.graphics.Rect;
+import android.graphics.RectF;
+import android.opengl.GLES20;
 import android.opengl.Matrix;
 import android.support.annotation.NonNull;
+import android.view.View;
 
+import java.lang.ref.WeakReference;
 import java.nio.FloatBuffer;
+
+import static android.graphics.Bitmap.Config.ARGB_8888;
 
 public class ViewWrapper {
     private int[] mTexureHandle = {0};
-    private int mTextureUnit = 0;
+    private int mTextureUnit = -1;
     private FloatBuffer mVertexBuffer, mTextureBuffer;
-    public float[]  mModelMatrix = new float[16];
+    public float[] mModelMatrix = new float[16];
 
-    private final float[] vertices;
-    private final float[] uvs;
+    private float[] vertices;
+    private float[] uvs;
 
-    public final int VERTEX_SIZE;
-    public final int TEXTURE_SIZE;
+    public int VERTEX_SIZE;
+    public int TEXTURE_SIZE;
+    public float VIEW_WIDTH;
+    public float VIEW_HEIGHT;
 
-    {
+    private int _view_width, _view_height;
+
+    private WeakReference<View> mViewCache = null;
+    private Bitmap mViewBuffer = null;
+    private Canvas mCanvas;
+
+
+    public void create(@NonNull View v, float parentWidth, float parentHeight) {
+        if (v == null) {
+            throw new IllegalArgumentException("input view is null");
+        }
+        mViewCache = new WeakReference<>(v);
+        create(v.getWidth(), v.getHeight(), parentWidth, parentHeight);
+    }
+
+    public void create(int w, int h, float parentWidth, float parentHeight) {
+        _view_width = w;
+        _view_height = h;
+        VIEW_WIDTH = w / parentWidth;
+        VIEW_HEIGHT = h / parentWidth;
         vertices = new float[]{
-                -1.0f, 1.0f, 0.0f,
-                -1.0f, -1.0f, 0.0f,
-                1.0f, 1.0f, 0.0f,
-                1.0f, -1.0f, 0.0f,
+                -VIEW_WIDTH / 2f, +VIEW_HEIGHT / 2f, 0.0f,
+                -VIEW_WIDTH / 2f, -VIEW_HEIGHT / 2f, 0.0f,
+                +VIEW_WIDTH / 2f, +VIEW_HEIGHT / 2f, 0.0f,
+                +VIEW_WIDTH / 2f, -VIEW_HEIGHT / 2f, 0.0f,
         };
         uvs = new float[]{
                 0.0f, 0.0f,
@@ -35,37 +66,81 @@ public class ViewWrapper {
         };
         VERTEX_SIZE = vertices.length;
         TEXTURE_SIZE = uvs.length;
-    }
-
-    public void init(){
         //顶点缓存
-        mVertexBuffer =GLUtil.genFloatBuffer(vertices);
+        mVertexBuffer = GLUtil.genFloatBuffer(vertices);
         //纹理缓存
         mTextureBuffer = GLUtil.genFloatBuffer(uvs);
-        Matrix.setIdentityM(mModelMatrix,0);
+        Matrix.setIdentityM(mModelMatrix, 0);
     }
 
-    public void initTexture(int texture_unit){
-        mTexureHandle = GLUtil.initTexture(texture_unit);
+    public void destroy() {
+        if (mViewBuffer != null && !mViewBuffer.isRecycled()) {
+            mViewBuffer.recycle();
+        }
+        if (mViewCache != null) {
+            mViewCache.clear();
+            mViewCache = null;
+        }
     }
 
-    public void updateTexture(@NonNull Bitmap bmp){
-        GLUtil.loadTextures(mTexureHandle[0], 0, bmp, true);
+    public RectF getRect() {
+        return new RectF(vertices[0], vertices[1], vertices[9], vertices[10]);
     }
 
-    public FloatBuffer getVertexBuffer(){
+    public void initTexture(int texture_unit) {
+        if (_view_width != 0 && _view_height != 0) {
+            if (mViewBuffer != null && !mViewBuffer.isRecycled()) {
+                mViewBuffer.recycle();
+            }
+            mViewBuffer = Bitmap.createBitmap(_view_width, _view_height, ARGB_8888);
+            mCanvas = new Canvas(mViewBuffer);
+            mTextureUnit = texture_unit;
+            mTexureHandle = GLUtil.initTexture(mTextureUnit);
+        }
+    }
+
+    /**
+     * test only
+     *
+     * @param str string to render
+     */
+    Paint mPaint = new Paint();
+
+    public void invalidate(String str) {
+        if (mCanvas != null) {
+            mPaint.setTextSize(Math.min(_view_width, _view_height) * 0.8f);
+            mPaint.setColor(Color.WHITE);
+            mPaint.setTextAlign(Paint.Align.CENTER);
+            Rect r = new Rect();
+            mPaint.getTextBounds(str, 0, str.length(), r);
+            mCanvas.drawText(str, (_view_width) / 2, (_view_height + r.height()) / 2, mPaint);
+            GLUtil.loadTextures(mTexureHandle[0], mTextureUnit, mViewBuffer, true);
+        }
+    }
+
+    public void invalidate() {
+        if (mCanvas != null && mViewCache != null) {
+            final View view = mViewCache.get();
+            if (view != null) {
+                view.draw(mCanvas);
+                GLUtil.loadTextures(mTexureHandle[0], mTextureUnit, mViewBuffer, true);
+            }
+        }
+    }
+
+    public FloatBuffer getVertexBuffer() {
         return mVertexBuffer;
     }
 
-    public FloatBuffer getTextureBuffer(){
+    public FloatBuffer getTextureBuffer() {
         return mTextureBuffer;
     }
 
-    public int getTextureHandle(){
+    public int getTextureHandle() {
         return mTexureHandle[0];
     }
 
-    public int getTextureUnit(){
+    public int getTextureUnit() {
         return mTextureUnit;
     }
 

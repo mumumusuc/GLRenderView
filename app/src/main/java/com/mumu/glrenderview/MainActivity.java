@@ -4,12 +4,15 @@ import android.graphics.PixelFormat;
 import android.opengl.GLSurfaceView;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.view.MotionEvent;
 import android.view.View;
 
 public class MainActivity extends AppCompatActivity {
 
     private GLSurfaceView mGLSurfaceView;
     private GLRenderer mRenderer;
+    private boolean zoom = false;
+    private int index = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -26,7 +29,30 @@ public class MainActivity extends AppCompatActivity {
         mGLSurfaceView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                mRenderer.zoom(mGLSurfaceView,-0.01f);
+                if (zoom) {
+                    mRenderer.zoomIn(mGLSurfaceView, index);
+                    //index = (index + 1) % 5;
+                } else {
+                    mRenderer.zoomOut(mGLSurfaceView);
+                }
+                zoom = !zoom;
+            }
+        });
+        mGLSurfaceView.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View view, MotionEvent motionEvent) {
+                switch (motionEvent.getAction() & MotionEvent.ACTION_MASK) {
+                    case MotionEvent.ACTION_DOWN:
+                        float x = motionEvent.getX();
+                        float y = motionEvent.getY();
+                        index = mRenderer.showTouchedView(x, y);
+                        mGLSurfaceView.performClick();
+                        mGLSurfaceView.requestRender();
+                        break;
+                    default:
+                        break;
+                }
+                return true;
             }
         });
     }
