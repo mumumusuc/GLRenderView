@@ -1,15 +1,42 @@
 package com.mumu.glrenderview;
 
+import android.content.res.AssetManager;
 import android.graphics.Bitmap;
 import android.opengl.GLES20;
 import android.opengl.GLUtils;
 import android.support.annotation.NonNull;
-
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 
 public class GLUtil {
+    public static String readAsset(@NonNull AssetManager assetManager, @NonNull String fileName) {
+        StringBuilder sb = new StringBuilder();
+        InputStream is = null;
+        byte[] buffer = new byte[1024];
+        try {
+            is = assetManager.open(fileName);
+            int size = 0;
+            while ((size = is.read(buffer)) > 0) {
+                for (int i = 0; i < size; i++)
+                    sb.append((char) buffer[i]);
+            }
+            return sb.toString();
+        } catch (IOException e) {
+
+        } finally {
+            if (is != null) {
+                try {
+                    is.close();
+                } catch (IOException e) {
+                }
+            }
+        }
+        return null;
+    }
+
     public static int createProgram(String vert, String frag) {
         int vertexShader = GLES20.glCreateShader(GLES20.GL_VERTEX_SHADER);
         GLES20.glShaderSource(vertexShader, vert);
@@ -62,7 +89,7 @@ public class GLUtil {
         }
     }
 
-    public static FloatBuffer genFloatBuffer(@NonNull float[] datas){
+    public static FloatBuffer genFloatBuffer(@NonNull float[] datas) {
         FloatBuffer buffer = ByteBuffer.allocateDirect(datas.length * Float.SIZE / 8)
                 .order(ByteOrder.nativeOrder())
                 .asFloatBuffer()

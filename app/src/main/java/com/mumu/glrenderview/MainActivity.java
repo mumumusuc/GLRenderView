@@ -12,12 +12,22 @@ public class MainActivity extends AppCompatActivity {
     private GLSurfaceView mGLSurfaceView;
     private GLRenderer mRenderer;
     private boolean zoom = false;
-    private int index = 0;
+    private int index = -1;
+    private View mView;
+    boolean first = true;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        mGLSurfaceView = new GLSurfaceView(this);
+        setContentView(R.layout.activity_main);
+        mView = findViewById(R.id.test);
+       mView.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                mGLSurfaceView.performClick();
+            }
+        });
+        mGLSurfaceView = (GLSurfaceView) findViewById(R.id.glsurfaceview);
         mGLSurfaceView.setEGLContextClientVersion(2); // Pick an OpenGL ES 2.0 context.
         //mGLSurfaceView.setZOrderOnTop(true);
         mGLSurfaceView.setEGLConfigChooser(8, 8, 8, 8, 16, 0);
@@ -25,14 +35,18 @@ public class MainActivity extends AppCompatActivity {
         mRenderer = new GLRenderer(this);
         mGLSurfaceView.setRenderer(mRenderer);
         mGLSurfaceView.setRenderMode(GLSurfaceView.RENDERMODE_WHEN_DIRTY);
-        setContentView(mGLSurfaceView);
         mGLSurfaceView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
+
                 if (zoom) {
                     mRenderer.zoomIn(mGLSurfaceView, index);
+                    //mView.setVisibility(View.VISIBLE);
+                    //mGLSurfaceView.setVisibility(View.INVISIBLE);
                     //index = (index + 1) % 5;
                 } else {
+                    mView.setVisibility(View.INVISIBLE);
+                    mGLSurfaceView.setVisibility(View.VISIBLE);
                     mRenderer.zoomOut(mGLSurfaceView);
                 }
                 zoom = !zoom;
@@ -43,11 +57,19 @@ public class MainActivity extends AppCompatActivity {
             public boolean onTouch(View view, MotionEvent motionEvent) {
                 switch (motionEvent.getAction() & MotionEvent.ACTION_MASK) {
                     case MotionEvent.ACTION_DOWN:
+                        if(first)
+                            mGLSurfaceView.queueEvent(new Runnable() {
+                                @Override
+                                public void run() {
+                                    mRenderer.bindView(2,mView);
+                                }
+                            });
+                        first = false;
                         float x = motionEvent.getX();
                         float y = motionEvent.getY();
                         index = mRenderer.showTouchedView(x, y);
                         mGLSurfaceView.performClick();
-                        mGLSurfaceView.requestRender();
+                       // mGLSurfaceView.requestRender();
                         break;
                     default:
                         break;
@@ -55,5 +77,7 @@ public class MainActivity extends AppCompatActivity {
                 return true;
             }
         });
+
     }
+
 }

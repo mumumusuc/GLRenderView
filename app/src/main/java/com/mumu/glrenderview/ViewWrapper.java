@@ -44,19 +44,22 @@ public class ViewWrapper {
             throw new IllegalArgumentException("input view is null");
         }
         mViewCache = new WeakReference<>(v);
-        create(v.getWidth(), v.getHeight(), parentWidth, parentHeight);
+        create(v.getLeft(), v.getTop(), v.getWidth(), v.getHeight(), parentWidth, parentHeight);
     }
 
-    public void create(int w, int h, float parentWidth, float parentHeight) {
+    public void create(int left, int top, int w, int h, float parentWidth, float parentHeight) {
         _view_width = w;
         _view_height = h;
+        float ratio = parentHeight / parentWidth / 2;
         VIEW_WIDTH = w / parentWidth;
         VIEW_HEIGHT = h / parentWidth;
+        float _left = left / parentWidth - 0.5f;
+        float _top = ratio - top / parentWidth;
         vertices = new float[]{
-                -VIEW_WIDTH / 2f, +VIEW_HEIGHT / 2f, 0.0f,
-                -VIEW_WIDTH / 2f, -VIEW_HEIGHT / 2f, 0.0f,
-                +VIEW_WIDTH / 2f, +VIEW_HEIGHT / 2f, 0.0f,
-                +VIEW_WIDTH / 2f, -VIEW_HEIGHT / 2f, 0.0f,
+                _left, _top, 0.0f,
+                _left, _top - VIEW_HEIGHT, 0.0f,
+                _left + VIEW_WIDTH, _top, 0.0f,
+                _left + VIEW_WIDTH, _top - VIEW_HEIGHT, 0.0f,
         };
         uvs = new float[]{
                 0.0f, 0.0f,
@@ -99,13 +102,13 @@ public class ViewWrapper {
         }
     }
 
+    Paint mPaint = new Paint();
+
     /**
      * test only
      *
      * @param str string to render
      */
-    Paint mPaint = new Paint();
-
     public void invalidate(String str) {
         if (mCanvas != null) {
             mPaint.setTextSize(Math.min(_view_width, _view_height) * 0.8f);
@@ -114,7 +117,7 @@ public class ViewWrapper {
             Rect r = new Rect();
             mPaint.getTextBounds(str, 0, str.length(), r);
             mCanvas.drawText(str, (_view_width) / 2, (_view_height + r.height()) / 2, mPaint);
-            GLUtil.loadTextures(mTexureHandle[0], mTextureUnit, mViewBuffer, true);
+            GLUtil.loadTextures(mTexureHandle[0], mTextureUnit, mViewBuffer, false);
         }
     }
 
@@ -123,7 +126,7 @@ public class ViewWrapper {
             final View view = mViewCache.get();
             if (view != null) {
                 view.draw(mCanvas);
-                GLUtil.loadTextures(mTexureHandle[0], mTextureUnit, mViewBuffer, true);
+                GLUtil.loadTextures(mTexureHandle[0], mTextureUnit, mViewBuffer, false);
             }
         }
     }

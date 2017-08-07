@@ -8,6 +8,7 @@ import android.opengl.GLSurfaceView;
 import android.opengl.Matrix;
 import android.support.annotation.NonNull;
 import android.util.Log;
+import android.view.View;
 import android.view.animation.AccelerateDecelerateInterpolator;
 import android.view.animation.AccelerateInterpolator;
 import android.view.animation.DecelerateInterpolator;
@@ -32,39 +33,11 @@ public class GLRenderer implements GLSurfaceView.Renderer {
     private float WIDTH, HEIGHT;
     private float[] mBoundColor = {1f, 1f, 1f, 1f};
     private int mSelected = -1;
-    final float FAR = 0.45f;
-    int mIndex = VIEW_SIZE / 2;
-
-    private final String vertexShaderCode =
-            "attribute vec4 a_position;"
-                    + "attribute vec2 a_texture;"
-                    + "uniform mat4 u_m_model;"
-                    + "uniform mat4 u_m_camera;"
-                    //+ "varying vec4 v_color;"
-                    + "varying vec2 v_texture;"
-                    + "void main() {"
-                    + "  gl_Position = u_m_camera * (u_m_model * a_position);"
-                    //+ "  gl_Position = a_position;"
-                    + "  v_texture = a_texture;"
-                    //+ "  v_color = vec4(1.0,1.0,1.0,1.0);"
-                    + "}";
-
-    private final String fragmentShaderCode =
-            "precision highp float;"
-                    //+ "varying vec4 v_color;"
-                    + "varying vec2 v_texture;"
-                    + "uniform sampler2D u_sampler; "
-                    + "uniform bool u_draw_bound; "
-                    + "uniform vec4 u_bound_color; "
-                    + "void main() {"
-                    + "  if(u_draw_bound && (v_texture.s < 0.01 || v_texture.s > 0.99 || v_texture.t < 0.01 || v_texture.t > 0.99)){"
-                    + "    gl_FragColor = u_bound_color;"
-                    + "  }else{"
-                    + "    gl_FragColor = texture2D(u_sampler, v_texture);"
-                    //+ " gl_FragColor = vec4(1.0f,1.0f,1.0f,1.0f);"
-                    + "  }"
-                    + "}";
-
+    private final float FAR = 0.45f;
+    private int mIndex = VIEW_SIZE / 2;
+    private final int ANIM_DURATION = 500;
+    private final String VERTEXT_SAHDER_FILE = "vert.glsl";
+    private final String FRAGMENT_SAHDER_FILE = "frag.glsl";
 
     public GLRenderer(@NonNull Context context) {
         mContext = context;
@@ -72,11 +45,13 @@ public class GLRenderer implements GLSurfaceView.Renderer {
 
     @Override
     public void onSurfaceCreated(GL10 gl10, EGLConfig eglConfig) {
-        g_progHandle = GLUtil.createProgram(vertexShaderCode, fragmentShaderCode);
+        g_progHandle = GLUtil.createProgram(
+                GLUtil.readAsset(mContext.getAssets(), VERTEXT_SAHDER_FILE),
+                GLUtil.readAsset(mContext.getAssets(), FRAGMENT_SAHDER_FILE));
         //配置GL
         GLES20.glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
         //GLES20.glEnable(GLES20.GL_DEPTH_TEST);
-        GLES20.glDepthFunc(GLES20.GL_LEQUAL);
+        //GLES20.glDepthFunc(GLES20.GL_LEQUAL);
         GLES20.glEnable(GLES20.GL_BLEND);
         GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA);
     }
@@ -85,31 +60,36 @@ public class GLRenderer implements GLSurfaceView.Renderer {
     public void onSurfaceChanged(GL10 gl10, int width, int height) {
         WIDTH = width;
         HEIGHT = height;
+        Log.i("GLRenderer", "w,h=(" + WIDTH + "," + HEIGHT + ")");
         GLES20.glViewport(0, 0, width, height);
         float ratio = HEIGHT / WIDTH / 2f;
+        Matrix.setIdentityM(g_ProjMatrix, 0);
         Matrix.frustumM(g_ProjMatrix, 0, -0.5f, 0.5f, -ratio, ratio, 0.1f, 10f);
+        Matrix.setIdentityM(g_CameraMatrix, 0);
         Matrix.setLookAtM(g_CameraMatrix, 0, 0, 0, 0.1f, 0, 0, 0, 0, 1, 0);
         Matrix.multiplyMM(g_CameraMatrix, 0, g_ProjMatrix, 0, g_CameraMatrix, 0);
         for (int i = 0; i < VIEW_SIZE; i++) {
-            mViews[i] = new ViewWrapper();
-            mViews[i].create((int) (WIDTH * 0.9f), (int) (HEIGHT * 0.9f), WIDTH, HEIGHT);
-           // if (i == 2) {
-                mViews[i].initTexture(i);
-                mViews[i].invalidate(String.valueOf(i));
-           // }
-            int t = i - VIEW_SIZE / 2;
-            float d = mViews[i].VIEW_WIDTH * 1.05f / _R;
-            Matrix.translateM(mViews[i].mModelMatrix, 0, 0, 0, _R);
-            Matrix.rotateM(mViews[i].mModelMatrix, 0, (float) (t * d / Math.PI * 180f), 0, 1, 0);
-            Matrix.translateM(mViews[i].mModelMatrix, 0, 0, 0, -_R);
+             if (i != 2) {
+                 mViews[i] = new ViewWrapper();
+                 mViews[i].initTexture(i);
+                 mViews[i].invalidate(String.valueOf(i));
+                 mViews[i].create((int) (WIDTH * 0.05f), (int) (HEIGHT * 0.05f), (int) (WIDTH * 0.9f), (int) (HEIGHT * 0.9f), WIDTH, HEIGHT);
+                 int t = i - VIEW_SIZE / 2;
+                 float d = mViews[i].VIEW_WIDTH * 1.05f / _R;
+                 Matrix.translateM(mViews[i].mModelMatrix, 0, 0, 0, _R);
+                 Matrix.rotateM(mViews[i].mModelMatrix, 0, (float) (t * d / Math.PI * 180f), 0, 1, 0);
+                 Matrix.translateM(mViews[i].mModelMatrix, 0, 0, 0, -_R);
+             }else{
+
+             }
         }
     }
 
     @Override
     public void onDrawFrame(GL10 gl10) {
-        GLES20.glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        GLES20.glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
-        GLES20.glClear(GLES20.GL_DEPTH_BUFFER_BIT);
+        //GLES20.glClear(GLES20.GL_DEPTH_BUFFER_BIT);
         GLES20.glUseProgram(g_progHandle);
         for (int i = 0; i < VIEW_SIZE; i++) {
             if (mViews[i] == null) {
@@ -165,7 +145,7 @@ public class GLRenderer implements GLSurfaceView.Renderer {
 
     private void zoom(@NonNull final GLSurfaceView view, final int obj_from, final int obj_to, final float near, final float far, final float obj_near, final float obj_far) {
         ValueAnimator valueAnimator = ValueAnimator.ofFloat(near, far);
-        valueAnimator.setDuration(500);
+        valueAnimator.setDuration(ANIM_DURATION);
         valueAnimator.setInterpolator(new DecelerateInterpolator());//Decelerate
         valueAnimator.start();
         bDrawBound = true;
@@ -174,11 +154,14 @@ public class GLRenderer implements GLSurfaceView.Renderer {
             @Override
             public void onAnimationUpdate(ValueAnimator animation) {
                 float value = (float) animation.getAnimatedValue();
-                float d = mViews[0].VIEW_WIDTH * 1.05f / value;
-                float to_rad = (obj_to - obj_from) * d;
-                float _d = getValue(value, near, far, obj_near, obj_far);
-                float _r = getValue(value, near, far, 0, to_rad);
                 for (int i = 0; i < VIEW_SIZE; i++) {
+                    if(mViews[i] == null) {
+                        continue;
+                    }
+                    float d = mViews[i].VIEW_WIDTH * 1.05f / value;
+                    float to_rad = (obj_to - obj_from) * d;
+                    float _d = getValue(value, near, far, obj_near, obj_far);
+                    float _r = getValue(value, near, far, 0, to_rad);
                     int t = obj_from - i;
                     Matrix.setIdentityM(mViews[i].mModelMatrix, 0);
                     Matrix.translateM(mViews[i].mModelMatrix, 0, 0, 0, value);
@@ -196,36 +179,34 @@ public class GLRenderer implements GLSurfaceView.Renderer {
 
     public void zoomOut(@NonNull final GLSurfaceView view) {
         zoom(view, mIndex, VIEW_SIZE / 2, _R, _R_NEAR, 0, FAR);
-        getViewBound(mViews[2]);
     }
 
     public void zoomIn(@NonNull final GLSurfaceView view, int index) {
         mIndex = index;
         zoom(view, VIEW_SIZE / 2, mIndex, _R_NEAR, _R, FAR, 0);
-        getViewBound(mViews[2]);
     }
 
     public RectF getViewBound(@NonNull ViewWrapper view) {
         // print(view.mModelMatrix);
-        RectF rect;
+        RectF rect = new RectF();
         Matrix.setIdentityM(temp, 0);
         Matrix.multiplyMM(temp, 0, g_CameraMatrix, 0, view.mModelMatrix, 0);
+        print("camera[]", g_CameraMatrix);
+        print("model[]", view.mModelMatrix);
         float[] result = new float[4];
-        rect = view.getRect();
-        float[] src = {rect.left, rect.top, 0, 1};
+        RectF src_rect = view.getRect();
+        Log.d("GLRenderer", "src -> " + src_rect);
+        float[] src = {src_rect.left, src_rect.top, 0, 1};
         Matrix.multiplyMV(result, 0, temp, 0, src, 0);
-        //print(result);
-        result[0] = (result[0] / result[3] + 1f) * WIDTH / 2;
-        result[1] = (-result[1] / result[3] + 1f) * HEIGHT / 2;
-        rect.left = result[0];
-        rect.top = result[1];
-        src = new float[]{rect.right, rect.bottom, 0, 1};
+        rect.left = WIDTH * result[0] + 0.5f * WIDTH;
+        rect.top = HEIGHT * 0.5f - result[1] * WIDTH;
+        src[0] = src_rect.right;
+        src[1] = src_rect.bottom;
+        src[2] = 0;
+        src[3] = 1;
         Matrix.multiplyMV(result, 0, temp, 0, src, 0);
-        result[0] = (result[0] / result[3] + 1f) * WIDTH / 2;
-        result[1] = (-result[1] / result[3] + 1f) * HEIGHT / 2;
-        //print(result);
-        rect.right = result[0];
-        rect.bottom = result[1];
+        rect.right = WIDTH * result[0] + 0.5f * WIDTH;
+        rect.bottom = HEIGHT * 0.5f - result[1] * WIDTH;
         Log.d("GLRenderer", "getViewBound -> " + rect);
         return rect;
     }
@@ -243,13 +224,28 @@ public class GLRenderer implements GLSurfaceView.Renderer {
         return mSelected;
     }
 
-    private void print(float[] dst) {
+    private void print(String tag, float[] dst) {
         StringBuilder sb = new StringBuilder();
-        sb.append("float[] = {");
+        sb.append(tag).append(" = {");
         for (float f : dst) {
             sb.append(f).append(", ");
         }
         sb.append("}");
         Log.d("GLRenderer", sb.toString());
+    }
+
+    public void bindView(int index, View view) {
+        Log.i("GLRenderer", "current thread is " + Thread.currentThread().getName());
+        if(mViews[index] == null)
+            mViews[index] = new ViewWrapper();
+        mViews[index].create(view, WIDTH, HEIGHT);
+        mViews[index].initTexture(index);
+        mViews[index].invalidate();
+        int t = index - VIEW_SIZE / 2;
+        float d = mViews[index].VIEW_WIDTH * 1.05f / _R;
+        Matrix.setIdentityM(mViews[index].mModelMatrix, 0);
+        Matrix.translateM(mViews[index].mModelMatrix, 0, 0, 0, _R);
+        Matrix.rotateM(mViews[index].mModelMatrix, 0, (float) (t * d / Math.PI * 180f), 0, 1, 0);
+        Matrix.translateM(mViews[index].mModelMatrix, 0, 0, 0, -_R);
     }
 }
