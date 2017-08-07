@@ -5,6 +5,7 @@ import android.graphics.Bitmap;
 import android.opengl.GLES20;
 import android.opengl.GLUtils;
 import android.support.annotation.NonNull;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
@@ -74,12 +75,15 @@ public class GLUtil {
         return texture;
     }
 
-    public static void loadTextures(int _texture, int TEXTURE_UNIT, Bitmap bmp, boolean recycle) {
+    public static void loadTextures(int _texture, int TEXTURE_UNIT, Bitmap bmp, boolean reload, boolean recycle) {
         if (bmp != null) {
             GLES20.glEnable(GLES20.GL_TEXTURE_2D);
             GLES20.glActiveTexture(GLES20.GL_TEXTURE0 + TEXTURE_UNIT);
             GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, _texture);
-            GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, bmp, 0);
+            if (reload)
+                GLUtils.texSubImage2D(GLES20.GL_TEXTURE_2D, 0, 0, 0, bmp);
+            else
+                GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, bmp, 0);
             GLES20.glDisable(GLES20.GL_TEXTURE_2D);
             GLES20.glActiveTexture(0);
             if (recycle) {

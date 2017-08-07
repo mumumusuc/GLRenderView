@@ -6,21 +6,22 @@
 
 
     <TextView
-        android:background="#0f0"
         android:id="@+id/test"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_gravity="center"
         android:layout_margin="16dp"
+        android:background="#0f0"
         android:gravity="center"
         android:text="Hello World!"
         android:textColor="#fff"
-        android:textSize="48sp" />
+        android:textSize="48sp"
+        android:visibility="visible" />
 
     <android.opengl.GLSurfaceView
-        android:visibility="invisible"
         android:id="@+id/glsurfaceview"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_height="match_parent"
+        android:visibility="invisible" />
 
 </FrameLayout>

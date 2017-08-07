@@ -109,7 +109,7 @@ public class ViewWrapper {
      *
      * @param str string to render
      */
-    public void invalidate(String str) {
+    public void invalidate(String str, boolean reload) {
         if (mCanvas != null) {
             mPaint.setTextSize(Math.min(_view_width, _view_height) * 0.8f);
             mPaint.setColor(Color.WHITE);
@@ -117,16 +117,16 @@ public class ViewWrapper {
             Rect r = new Rect();
             mPaint.getTextBounds(str, 0, str.length(), r);
             mCanvas.drawText(str, (_view_width) / 2, (_view_height + r.height()) / 2, mPaint);
-            GLUtil.loadTextures(mTexureHandle[0], mTextureUnit, mViewBuffer, false);
+            GLUtil.loadTextures(mTexureHandle[0], mTextureUnit, mViewBuffer, reload, false);
         }
     }
 
-    public void invalidate() {
+    public void invalidate(boolean reload) {
         if (mCanvas != null && mViewCache != null) {
             final View view = mViewCache.get();
             if (view != null) {
                 view.draw(mCanvas);
-                GLUtil.loadTextures(mTexureHandle[0], mTextureUnit, mViewBuffer, false);
+                GLUtil.loadTextures(mTexureHandle[0], mTextureUnit, mViewBuffer, reload, false);
             }
         }
     }

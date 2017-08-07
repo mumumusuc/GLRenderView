@@ -24,7 +24,7 @@ public class GLRenderer implements GLSurfaceView.Renderer {
     private int g_progHandle;
     private final int VIEW_SIZE = 5;
     private final int _R = 800;
-    private final int _R_NEAR = 60;
+    private final int _R_NEAR = 40;
     private boolean bDrawBound = true;
     private float[] g_ProjMatrix = new float[16],
             g_CameraMatrix = new float[16],
@@ -33,7 +33,7 @@ public class GLRenderer implements GLSurfaceView.Renderer {
     private float WIDTH, HEIGHT;
     private float[] mBoundColor = {1f, 1f, 1f, 1f};
     private int mSelected = -1;
-    private final float FAR = 0.45f;
+    private final float FAR = 0.5f;
     private int mIndex = VIEW_SIZE / 2;
     private final int ANIM_DURATION = 500;
     private final String VERTEXT_SAHDER_FILE = "vert.glsl";
@@ -68,21 +68,6 @@ public class GLRenderer implements GLSurfaceView.Renderer {
         Matrix.setIdentityM(g_CameraMatrix, 0);
         Matrix.setLookAtM(g_CameraMatrix, 0, 0, 0, 0.1f, 0, 0, 0, 0, 1, 0);
         Matrix.multiplyMM(g_CameraMatrix, 0, g_ProjMatrix, 0, g_CameraMatrix, 0);
-        for (int i = 0; i < VIEW_SIZE; i++) {
-             if (i != 2) {
-                 mViews[i] = new ViewWrapper();
-                 mViews[i].initTexture(i);
-                 mViews[i].invalidate(String.valueOf(i));
-                 mViews[i].create((int) (WIDTH * 0.05f), (int) (HEIGHT * 0.05f), (int) (WIDTH * 0.9f), (int) (HEIGHT * 0.9f), WIDTH, HEIGHT);
-                 int t = i - VIEW_SIZE / 2;
-                 float d = mViews[i].VIEW_WIDTH * 1.05f / _R;
-                 Matrix.translateM(mViews[i].mModelMatrix, 0, 0, 0, _R);
-                 Matrix.rotateM(mViews[i].mModelMatrix, 0, (float) (t * d / Math.PI * 180f), 0, 1, 0);
-                 Matrix.translateM(mViews[i].mModelMatrix, 0, 0, 0, -_R);
-             }else{
-
-             }
-        }
     }
 
     @Override
@@ -143,22 +128,27 @@ public class GLRenderer implements GLSurfaceView.Renderer {
         GLES20.glDisableVertexAttribArray(_a_position);
     }
 
-    private void zoom(@NonNull final GLSurfaceView view, final int obj_from, final int obj_to, final float near, final float far, final float obj_near, final float obj_far) {
+    private void zoom(
+            @NonNull final GLSurfaceView view,
+            final int obj_from, final int obj_to,
+            final float near, final float far,
+            final float obj_near, final float obj_far,
+            Callback callback) {
+        final Callback mCallback = callback;
         ValueAnimator valueAnimator = ValueAnimator.ofFloat(near, far);
         valueAnimator.setDuration(ANIM_DURATION);
         valueAnimator.setInterpolator(new DecelerateInterpolator());//Decelerate
         valueAnimator.start();
         bDrawBound = true;
         valueAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
-
             @Override
             public void onAnimationUpdate(ValueAnimator animation) {
                 float value = (float) animation.getAnimatedValue();
                 for (int i = 0; i < VIEW_SIZE; i++) {
-                    if(mViews[i] == null) {
+                    if (mViews[i] == null) {
                         continue;
                     }
-                    float d = mViews[i].VIEW_WIDTH * 1.05f / value;
+                    float d = mViews[i].VIEW_WIDTH * 1.02f / value;
                     float to_rad = (obj_to - obj_from) * d;
                     float _d = getValue(value, near, far, obj_near, obj_far);
                     float _r = getValue(value, near, far, 0, to_rad);
@@ -169,6 +159,9 @@ public class GLRenderer implements GLSurfaceView.Renderer {
                     Matrix.translateM(mViews[i].mModelMatrix, 0, 0, 0, -(value + _d));
                 }
                 view.requestRender();
+                if (value == far && mCallback != null) {
+                    mCallback.onAnimEnd();
+                }
             }
         });
     }
@@ -178,12 +171,12 @@ public class GLRenderer implements GLSurfaceView.Renderer {
     }
 
     public void zoomOut(@NonNull final GLSurfaceView view) {
-        zoom(view, mIndex, VIEW_SIZE / 2, _R, _R_NEAR, 0, FAR);
+        zoom(view, mIndex, VIEW_SIZE / 2, _R, _R_NEAR, 0, FAR, null);
     }
 
-    public void zoomIn(@NonNull final GLSurfaceView view, int index) {
+    public void zoomIn(@NonNull final GLSurfaceView view, int index, Callback callback) {
         mIndex = index;
-        zoom(view, VIEW_SIZE / 2, mIndex, _R_NEAR, _R, FAR, 0);
+        zoom(view, VIEW_SIZE / 2, mIndex, _R_NEAR, _R, FAR, 0, callback);
     }
 
     public RectF getViewBound(@NonNull ViewWrapper view) {
@@ -236,16 +229,51 @@ public class GLRenderer implements GLSurfaceView.Renderer {
 
     public void bindView(int index, View view) {
         Log.i("GLRenderer", "current thread is " + Thread.currentThread().getName());
-        if(mViews[index] == null)
+        if (mViews[index] == null)
             mViews[index] = new ViewWrapper();
         mViews[index].create(view, WIDTH, HEIGHT);
-        mViews[index].initTexture(index);
-        mViews[index].invalidate();
+        if(mViews[index].getTextureHandle() > 0){
+            mViews[index].invalidate(false);
+        }else {
+            mViews[index].initTexture(index);
+            mViews[index].invalidate(true);
+        }
         int t = index - VIEW_SIZE / 2;
-        float d = mViews[index].VIEW_WIDTH * 1.05f / _R;
+        float d = mViews[index].VIEW_WIDTH * 1.02f / _R;
         Matrix.setIdentityM(mViews[index].mModelMatrix, 0);
         Matrix.translateM(mViews[index].mModelMatrix, 0, 0, 0, _R);
         Matrix.rotateM(mViews[index].mModelMatrix, 0, (float) (t * d / Math.PI * 180f), 0, 1, 0);
         Matrix.translateM(mViews[index].mModelMatrix, 0, 0, 0, -_R);
+    }
+
+    /**
+     * test only
+     *
+     * @param index
+     * @param w
+     * @param h
+     * @param str
+     */
+    public void bindView(int index, float l, float t, float w, float h, String str) {
+        Log.i("GLRenderer", "current thread is " + Thread.currentThread().getName());
+        if (mViews[index] == null)
+            mViews[index] = new ViewWrapper();
+        mViews[index].create((int) l, (int) t, (int) w, (int) h, WIDTH, HEIGHT);
+        if(mViews[index].getTextureHandle() > 0){
+            mViews[index].invalidate(str,false);
+        }else {
+            mViews[index].initTexture(index);
+            mViews[index].invalidate(str,true);
+        }
+        int _t = index - VIEW_SIZE / 2;
+        float d = mViews[index].VIEW_WIDTH * 1.02f / _R;
+        Matrix.setIdentityM(mViews[index].mModelMatrix, 0);
+        Matrix.translateM(mViews[index].mModelMatrix, 0, 0, 0, _R);
+        Matrix.rotateM(mViews[index].mModelMatrix, 0, (float) (_t * d / Math.PI * 180f), 0, 1, 0);
+        Matrix.translateM(mViews[index].mModelMatrix, 0, 0, 0, -_R);
+    }
+
+    public interface Callback {
+        void onAnimEnd();
     }
 }
