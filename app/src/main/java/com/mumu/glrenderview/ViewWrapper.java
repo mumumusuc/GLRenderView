@@ -70,15 +70,15 @@ public class ViewWrapper {
         VERTEX_SIZE = vertices.length;
         TEXTURE_SIZE = uvs.length;
         //顶点缓存
-        mVertexBuffer = GLUtil.genFloatBuffer(vertices);
+        mVertexBuffer = GLUtil.genFloatBuffer(vertices, mVertexBuffer);
         //纹理缓存
-        mTextureBuffer = GLUtil.genFloatBuffer(uvs);
+        mTextureBuffer = GLUtil.genFloatBuffer(uvs, mTextureBuffer);
         Matrix.setIdentityM(mModelMatrix, 0);
     }
 
     public void destroy() {
         if (mViewBuffer != null && !mViewBuffer.isRecycled()) {
-            mViewBuffer.recycle();
+            //mViewBuffer.recycle();
         }
         if (mViewCache != null) {
             mViewCache.clear();
@@ -91,12 +91,21 @@ public class ViewWrapper {
     }
 
     public void initTexture(int texture_unit) {
-        if (_view_width != 0 && _view_height != 0) {
+        if (mViewBuffer != null
+                && mViewBuffer.getWidth() == _view_width
+                && mViewBuffer.getHeight() == _view_height
+                && !mViewBuffer.isRecycled()) {
+            mViewBuffer.eraseColor(0);
+        } else {
             if (mViewBuffer != null && !mViewBuffer.isRecycled()) {
                 mViewBuffer.recycle();
             }
-            mViewBuffer = Bitmap.createBitmap(_view_width, _view_height, ARGB_8888);
-            mCanvas = new Canvas(mViewBuffer);
+            if (_view_width != 0 && _view_height != 0) {
+                mViewBuffer = Bitmap.createBitmap(_view_width, _view_height, ARGB_8888);
+                mCanvas = new Canvas(mViewBuffer);
+            }
+        }
+        if (mTextureUnit != texture_unit) {
             mTextureUnit = texture_unit;
             mTexureHandle = GLUtil.initTexture(mTextureUnit);
         }

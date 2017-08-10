@@ -15,6 +15,9 @@ import android.view.animation.DecelerateInterpolator;
 import android.view.animation.LinearInterpolator;
 
 
+import java.util.LinkedList;
+import java.util.Queue;
+
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
 
@@ -22,14 +25,14 @@ public class GLRenderer implements GLSurfaceView.Renderer {
 
     private Context mContext;
     private int g_progHandle;
-    private final int VIEW_SIZE = 5;
+    private int VIEW_SIZE = 3;
     private final int _R = 800;
     private final int _R_NEAR = 40;
     private boolean bDrawBound = true;
     private float[] g_ProjMatrix = new float[16],
             g_CameraMatrix = new float[16],
             temp = new float[16];
-    private ViewWrapper[] mViews = new ViewWrapper[VIEW_SIZE];
+    private ViewWrapper[] mViews;
     private float WIDTH, HEIGHT;
     private float[] mBoundColor = {1f, 1f, 1f, 1f};
     private int mSelected = -1;
@@ -38,13 +41,18 @@ public class GLRenderer implements GLSurfaceView.Renderer {
     private final int ANIM_DURATION = 500;
     private final String VERTEXT_SAHDER_FILE = "vert.glsl";
     private final String FRAGMENT_SAHDER_FILE = "frag.glsl";
+    private GLSurfaceView mHost = null;
+    private Queue<Runnable> mQueue;
+    private boolean ON_SURFACE_CHANGED = false;
 
     public GLRenderer(@NonNull Context context) {
         mContext = context;
+        mQueue = new LinkedList<>();
     }
 
     @Override
     public void onSurfaceCreated(GL10 gl10, EGLConfig eglConfig) {
+        ON_SURFACE_CHANGED = false;
         g_progHandle = GLUtil.createProgram(
                 GLUtil.readAsset(mContext.getAssets(), VERTEXT_SAHDER_FILE),
                 GLUtil.readAsset(mContext.getAssets(), FRAGMENT_SAHDER_FILE));
@@ -68,6 +76,8 @@ public class GLRenderer implements GLSurfaceView.Renderer {
         Matrix.setIdentityM(g_CameraMatrix, 0);
         Matrix.setLookAtM(g_CameraMatrix, 0, 0, 0, 0.1f, 0, 0, 0, 0, 1, 0);
         Matrix.multiplyMM(g_CameraMatrix, 0, g_ProjMatrix, 0, g_CameraMatrix, 0);
+        ON_SURFACE_CHANGED = true;
+        exec();
     }
 
     @Override
@@ -227,14 +237,27 @@ public class GLRenderer implements GLSurfaceView.Renderer {
         Log.d("GLRenderer", sb.toString());
     }
 
+    public void createViews(@NonNull GLSurfaceView host, int capacity) {
+        VIEW_SIZE = capacity;
+        mHost = host;
+        if (mViews != null) {
+            for (int i = 0; i < mViews.length; i++) {
+                if (mViews[i] == null)
+                    continue;
+                mViews[i].destroy();
+            }
+        }
+        mViews = new ViewWrapper[VIEW_SIZE];
+    }
+
     public void bindView(int index, View view) {
         Log.i("GLRenderer", "current thread is " + Thread.currentThread().getName());
         if (mViews[index] == null)
             mViews[index] = new ViewWrapper();
         mViews[index].create(view, WIDTH, HEIGHT);
-        if(mViews[index].getTextureHandle() > 0){
+        if (mViews[index].getTextureHandle() > 0) {
             mViews[index].invalidate(false);
-        }else {
+        } else {
             mViews[index].initTexture(index);
             mViews[index].invalidate(true);
         }
@@ -259,11 +282,11 @@ public class GLRenderer implements GLSurfaceView.Renderer {
         if (mViews[index] == null)
             mViews[index] = new ViewWrapper();
         mViews[index].create((int) l, (int) t, (int) w, (int) h, WIDTH, HEIGHT);
-        if(mViews[index].getTextureHandle() > 0){
-            mViews[index].invalidate(str,false);
-        }else {
+        if (mViews[index].getTextureHandle() > 0) {
+            mViews[index].invalidate(str, false);
+        } else {
             mViews[index].initTexture(index);
-            mViews[index].invalidate(str,true);
+            mViews[index].invalidate(str, true);
         }
         int _t = index - VIEW_SIZE / 2;
         float d = mViews[index].VIEW_WIDTH * 1.02f / _R;
@@ -271,6 +294,35 @@ public class GLRenderer implements GLSurfaceView.Renderer {
         Matrix.translateM(mViews[index].mModelMatrix, 0, 0, 0, _R);
         Matrix.rotateM(mViews[index].mModelMatrix, 0, (float) (_t * d / Math.PI * 180f), 0, 1, 0);
         Matrix.translateM(mViews[index].mModelMatrix, 0, 0, 0, -_R);
+    }
+
+    public void post(@NonNull Runnable r) {
+        if (ON_SURFACE_CHANGED) {
+            if (mHost != null) {
+                mHost.queueEvent(r);
+            } else {
+                //this MAY CAUSE ERROR !
+                r.run();
+            }
+        } else {
+            mQueue.offer(r);
+        }
+    }
+
+    private void exec() {
+        if (ON_SURFACE_CHANGED) {
+            while (mQueue.size() > 0) {
+                final Runnable r = mQueue.poll();
+                if (mHost != null) {
+                    mHost.queueEvent(r);
+                } else {
+                    //this MAY CAUSE ERROR !
+                    r.run();
+                }
+            }
+        } else {
+            Log.w("GLRenderer", "exec -> warning, surface has'nt been created");
+        }
     }
 
     public interface Callback {

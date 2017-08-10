@@ -5,6 +5,8 @@ import android.graphics.Bitmap;
 import android.opengl.GLES20;
 import android.opengl.GLUtils;
 import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
+import android.util.Log;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -13,6 +15,14 @@ import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 
 public class GLUtil {
+    private static final String TAG = GLUtil.class.getSimpleName();
+    private static final boolean DEBUG = true;
+
+    private static void LOGI(String log) {
+        if (DEBUG)
+            Log.i(TAG, log);
+    }
+
     public static String readAsset(@NonNull AssetManager assetManager, @NonNull String fileName) {
         StringBuilder sb = new StringBuilder();
         InputStream is = null;
@@ -93,11 +103,20 @@ public class GLUtil {
         }
     }
 
-    public static FloatBuffer genFloatBuffer(@NonNull float[] datas) {
-        FloatBuffer buffer = ByteBuffer.allocateDirect(datas.length * Float.SIZE / 8)
-                .order(ByteOrder.nativeOrder())
-                .asFloatBuffer()
-                .put(datas);
+
+    public static FloatBuffer genFloatBuffer(@NonNull float[] data, @Nullable FloatBuffer buffer) {
+        int newCapacity = data.length * Float.SIZE / 8;
+        int oldCapacity = buffer == null ? 0 : buffer.capacity() * Float.SIZE / 8;
+        LOGI("genFloatBuffer -> new = " + newCapacity + ", old = " + oldCapacity);
+        if (buffer != null && oldCapacity >= newCapacity) {
+            buffer.clear().position(0);
+            buffer.put(data);
+        }else{
+            buffer = ByteBuffer.allocateDirect(newCapacity)
+                    .order(ByteOrder.nativeOrder())
+                    .asFloatBuffer()
+                    .put(data);
+        }
         buffer.position(0);
         return buffer;
     }

@@ -16,6 +16,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private View mView;
     private boolean first = true;
     private float x, y;
+    private final int VIEW_SIZE = 5;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -25,10 +26,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mView.setOnClickListener(this);
         mGLSurfaceView = (GLSurfaceView) findViewById(R.id.glsurfaceview);
         mGLSurfaceView.setEGLContextClientVersion(2); // Pick an OpenGL ES 2.0 context.
-        //mGLSurfaceView.setZOrderOnTop(true);
+        mGLSurfaceView.setZOrderOnTop(true);
         mGLSurfaceView.setEGLConfigChooser(8, 8, 8, 8, 16, 0);
         mGLSurfaceView.getHolder().setFormat(PixelFormat.TRANSLUCENT);
         mRenderer = new GLRenderer(this);
+        mRenderer.createViews(mGLSurfaceView, VIEW_SIZE);
         mGLSurfaceView.setRenderer(mRenderer);
         mGLSurfaceView.setRenderMode(GLSurfaceView.RENDERMODE_WHEN_DIRTY);
         mGLSurfaceView.setOnClickListener(this);
@@ -73,14 +75,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         } else {
             mView.setVisibility(View.INVISIBLE);
             mGLSurfaceView.setVisibility(View.VISIBLE);
-            mGLSurfaceView.queueEvent(new Runnable() {
+            mRenderer.post(new Runnable() {
                 @Override
                 public void run() {
-                    for (int i = 0; i < 5; i++) {
-                        if (i == 2)
-                            mRenderer.bindView(2, mView);
-                        else
-                            mRenderer.bindView(i, mView.getLeft(), mView.getTop(), mView.getWidth(), mView.getHeight(), String.valueOf(i));
+                    for (int i = 0; i < VIEW_SIZE; i++) {
+                        //if (i == 2)
+                        mRenderer.bindView(i, mView);
+                        //else
+                        //mRenderer.bindView(i, mView.getLeft(), mView.getTop(), mView.getWidth(), mView.getHeight(), String.valueOf(i));
                     }
                 }
             });
@@ -92,10 +94,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private GLRenderer.Callback mCallback = new GLRenderer.Callback() {
         @Override
         public void onAnimEnd() {
-            if (index == 2) {
-                mView.setVisibility(View.VISIBLE);
-             //   mGLSurfaceView.setVisibility(View.INVISIBLE);
-            }
+            //if (index == 2) {
+            mGLSurfaceView.setVisibility(View.INVISIBLE);
+            mView.setVisibility(View.VISIBLE);
+            // }
         }
     };
 }
